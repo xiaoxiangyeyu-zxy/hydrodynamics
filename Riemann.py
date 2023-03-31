@@ -1,6 +1,8 @@
 import numpy as np
 import scipy
 from scipy.optimize import fsolve
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 
 gamma = 1.4
 R = 287
@@ -192,17 +194,28 @@ F = np.zeros((N-1, 3))  # flux vector
 steps = 0
 flag = 1
 current_time = 0
-t_max = 0.02
+t_max = 0.4
 maxSteps = 1e4
 
 u_left = U[0:N-1, :]
 u_right = U[1:N, :]
+
+rho_plot = []
+U_plot = []
+P_plot = []
+T_plot = []
+
+rho_plot.append(W[:, 0])
+U_plot.append(W[:, 1])
+P_plot.append(W[:, 2])
+T_plot.append(current_time)
 
 while flag:
     steps = steps + 1
     dt = CFL * dx / max(abs(W[:, 1]) + np.sqrt(gamma * W[:, 2] / W[:, 0]))
     if steps > maxSteps:  # stop criteria
         print('WARNING: maxSteps reached!')
+        steps = steps - 1
         break
     if current_time+dt >= t_max:  # stop criteria
         dt = t_max-current_time
@@ -219,4 +232,64 @@ while flag:
     U[N-1, :] = U[N-2, :]
 
     W = u2w(U)
-    
+
+    rho_plot.append(W[:, 0])
+    U_plot.append(W[:, 1])
+    P_plot.append(W[:, 2])
+    T_plot.append(current_time)
+
+rho_plot = np.array(rho_plot)
+U_plot = np.array(U_plot)
+P_plot = np.array(P_plot)
+T_plot = np.array(T_plot)
+
+# 定义画布
+fig, ax = plt.subplots(3, 1)
+line1, = ax[0].plot([], [])
+line2, = ax[1].plot([], [])
+line3, = ax[2].plot([], [])
+
+
+xtext_ani = ax[0].text(0.5, 0.5, "", fontsize=12)
+# 获取直线的数组
+def line_space1(B):
+    x_plot = x
+    return x_plot, rho_plot[B, :]
+
+
+def line_space2(B):
+    x_plot = x
+    return x_plot, U_plot[B, :]
+
+
+def line_space3(B):
+    x_plot = x
+    return x_plot, P_plot[B, :]
+
+
+def update1(B):
+    ax[0].set_xlim(0, 1)
+    ax[0].set_ylim(0, 1.5)
+    ax[0].set_ylabel("density")
+    x_plot, y = line_space1(B)
+    line1.set_data(x_plot, y)
+    xtext_ani.set_text("t="+str(T_plot[B]))
+
+    ax[1].set_xlim(0, 1)
+    ax[1].set_ylim(0, 1.5)
+    ax[1].set_ylabel("velocity")
+    x_plot, y = line_space2(B)
+    line2.set_data(x_plot, y)
+
+    ax[2].set_xlim(0, 1)
+    ax[2].set_ylim(0, 1.5)
+    ax[2].set_ylabel("pressure")
+    x_plot, y = line_space3(B)
+    line3.set_data(x_plot, y)
+    return [line1, xtext_ani], line2, line3
+
+
+ani = FuncAnimation(fig, update1, frames=np.arange(steps), interval=50)
+plt.show()
+
+ani.save('move2.gif', writer='Pillow', fps=10)
